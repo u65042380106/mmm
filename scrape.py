@@ -89,7 +89,7 @@ def scrape_lazada_200_items(keyword, min_price, max_price, ship_from_filter):
                             "image_url": image_url
                         })
                         items_found_in_this_page += 1
-                        if len(products_list) >= 200: break
+                        if len(products_list) >= 100: break
             except: pass
 
             # 🚀 วิธีที่ 2: สแกนจาก HTML
@@ -196,7 +196,7 @@ def scrape_lazada_200_items(keyword, min_price, max_price, ship_from_filter):
                             "image_url": image_url
                         })
                         items_found_in_this_page += 1
-                        if len(products_list) >= 200: break
+                        if len(products_list) >= 70: break
                     except Exception as e:
                         continue
 

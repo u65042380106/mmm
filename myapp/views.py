@@ -12,7 +12,6 @@ from django.http import HttpResponse
 import traceback
 from django.db.models import Count
 
-# 1. หน้าแรกของเว็บไซต์ (Index)
 def index_view(request):
     popular_searches = (
         SearchHistory.objects.values('keyword')
@@ -21,12 +20,10 @@ def index_view(request):
     )
     return render(request, 'index.html', {'popular_searches': popular_searches})
 
-# 2. หน้าฟอร์มกรอกคำค้นหาพร้อม Filter 
 @login_required
 def search_view(request):
     return render(request, 'search.html')
 
-# 3. หน้าตั้งค่าโปรไฟล์สมาชิก (ปรับปรุงรองรับการเปลี่ยน Username และชื่อ-นามสกุล)
 @login_required
 def profile_view(request):
     if request.method == 'POST':
@@ -36,54 +33,78 @@ def profile_view(request):
         
         if username and username != request.user.username:
             if User.objects.filter(username=username).exists():
-                messages.error(request, '❌ ชื่อผู้ใช้นี้มีคนใช้งานแล้ว กรุณาเลือกชื่ออื่นครับ')
+                messages.error(request, '❌ ชื่อผู้ใช้นี้มีคนใช้งานแล้ว')
                 return redirect('profile')
             request.user.username = username
             
         request.user.first_name = first_name
         request.user.last_name = last_name
         request.user.save()
-        
         messages.success(request, '✅ อัปเดตข้อมูลโปรไฟล์เรียบร้อยแล้ว!')
         return redirect('profile')
-        
     return render(request, 'profile.html')
 
-# 4. ฟังก์ชันแอบทำงานเบื้องหลัง (ส่งข้อมูลหา n8n และบันทึกฟิลเตอร์)
+# แก้ไขเฉพาะฟังก์ชัน run_n8n_in_background
 def run_n8n_in_background(history_id, payload):
     try:
+        # ขั้นที่ 1: บอกว่ากำลังรอ AI และ Scrape 1 ทำงาน
+        history = SearchHistory.objects.get(id=history_id)
+        history.status = 'pending_n8n'
+        history.save()
+
         N8N_WEBHOOK_URL = 'http://localhost:5678/webhook-test/shopee-search'
         response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=None)
         
         if response.status_code == 200:
             result_data = response.json()
-            history = SearchHistory.objects.get(id=history_id)
-            history.ai_result = result_data.get('ai_analysis', 'ไม่มีผลวิเคราะห์')
+            products_9_items = result_data.get('products', [])
+            ai_analysis = result_data.get('ai_analysis', 'ไม่มีผลวิเคราะห์')
             
-            # 🌟 แพ็กข้อมูลตัวกรองดาว (min_rating) รวมเข้าไว้กับข้อมูลสินค้า
+            # ขั้นที่ 2: ได้ของ 9 ชิ้นมาแล้ว บอกผู้ใช้ว่ากำลังรัน Scrape 2 (ดึงรูป)
+            history.status = 'pending_scrape2'
+            history.save()
+
+            urls_to_scrape = [p.get('link') for p in products_9_items if p.get('link')]
+            if urls_to_scrape:
+                try:
+                    scrape2_resp = requests.post('http://localhost:5001/api/scrape_details', json={'urls': urls_to_scrape})
+                    if scrape2_resp.status_code == 200:
+                        deep_details = scrape2_resp.json()
+                        for product in products_9_items:
+                            for detail in deep_details:
+                                if product.get('link') == detail.get('url'):
+                                    if detail.get('high_res_image'):
+                                        product['image_url'] = detail['high_res_image']
+                                    product['description'] = detail.get('description', '')
+                except Exception as e:
+                    print(f"Scrape2 Error: {e}") 
+
+            history.ai_result = ai_analysis
+            
             combined_data = {
-                'products': result_data.get('products', []),
+                'products': products_9_items,
                 'filters': {
                     'min_price': payload.get('min_price', ''),
                     'max_price': payload.get('max_price', ''),
                     'ship_from': payload.get('ship_from', 'all'),
-                    'min_rating': payload.get('min_rating', ''),  # บันทึกคะแนนดาวขั้นต่ำ
+                    'min_rating': payload.get('min_rating', ''),
                     'ai_mode': payload.get('ai_mode', 'balanced')
                 }
             }
             history.products_json = json.dumps(combined_data, ensure_ascii=False)
+            
+            # ขั้นที่ 3: ทุกอย่างเสร็จสมบูรณ์ ปลดล็อคปุ่มให้เข้าไปดูผลลัพธ์ได้!
             history.status = 'success' 
             history.save()
+            
     except Exception:
         try:
             history = SearchHistory.objects.get(id=history_id)
             history.status = 'error'
             history.ai_result = "เกิดข้อผิดพลาดในการเชื่อมต่อระบบวิเคราะห์ข้อมูล"
             history.save()
-        except: 
-            pass
+        except: pass
 
-# 5. หน้าประตูกลางรับคำค้นหาและฟิลเตอร์ดาว
 @login_required
 def dashboard_view(request):
     try:  
@@ -94,75 +115,45 @@ def dashboard_view(request):
         min_rating = request.GET.get('min_rating', '').strip()
         ai_mode = request.GET.get('ai_mode', 'balanced')
         
-        if not keyword:
-            return redirect('search')
+        if not keyword: return redirect('search')
             
         ai_filter_parts = []
-        
-        # 🌟 1. เพิ่มคำสั่งให้ AI วิเคราะห์ชื่อสินค้า (Title) และยี่ห้อจาก Keyword อย่างเข้มงวด
-        ai_filter_parts.append(f"โปรดวิเคราะห์ชื่อสินค้า (Title) อย่างละเอียดเทียบกับคำค้นหา '{keyword}' หากในคำค้นหามีการระบุ 'ยี่ห้อ' หรือ 'รุ่น' ให้คัดเลือกเฉพาะสินค้าที่เป็นยี่ห้อ/รุ่นนั้นจริงๆ และให้ตัดสินค้าที่จงใจใส่ชื่อยี่ห้อมาหลอก (Spam Keyword) ทิ้งไปทันที")
+        # คำสั่งสำคัญ: บังคับคัดมาแค่ 9 ชิ้น!
+        ai_filter_parts.append(f"โปรดวิเคราะห์ชื่อสินค้าเทียบกับ '{keyword}' คัดสแปมทิ้ง และ **คัดเลือกสินค้าที่ดีที่สุดมาให้เหลือเพียง 9 ชิ้นถ้วนเท่านั้น**")
 
-        if min_price:
-            ai_filter_parts.append(f"ต้องมีราคาตั้งแต่ {min_price} บาทขึ้นไป")
-        if max_price:
-            ai_filter_parts.append(f"ต้องมีราคาไม่เกิน {max_price} บาท")
-            
-        if ship_from == 'local':
-            ai_filter_parts.append("ต้องส่งจากภายในประเทศหรือในไทยเท่านั้น ห้ามเอาต่างประเทศ")
-        elif ship_from == 'overseas': 
-            ai_filter_parts.append("ต้องส่งจากต่างประเทศเท่านั้น (แต่ถ้าสถานที่จัดส่งระบุเป็น 'ไม่ระบุ' ให้อนุโลมถือว่าเป็นต่างประเทศและนับรวมไปด้วยทันที)")
+        if min_price: ai_filter_parts.append(f"ราคาตั้งแต่ {min_price} บ.")
+        if max_price: ai_filter_parts.append(f"ราคาไม่เกิน {max_price} บ.")
+        if ship_from == 'local': ai_filter_parts.append("ส่งจากไทยเท่านั้น")
+        elif ship_from == 'overseas': ai_filter_parts.append("ส่งจากต่างประเทศเท่านั้น")
+        if min_rating: ai_filter_parts.append(f"รีวิวไม่ต่ำกว่า {min_rating} ดาว")
 
-        if min_rating:
-            ai_filter_parts.append(f"ต้องมีระดับคะแนนรีวิวเฉลี่ยไม่ต่ำกว่า {min_rating} ดาวขึ้นไป สินค้าชิ้นไหนได้คะแนนดาวน้อยกว่านี้ให้คัดออกทันที")
+        if ai_mode == 'safe': ai_filter_parts.append("เน้นน่าเชื่อถือ รีวิวเยอะ")
+        elif ai_mode == 'budget': ai_filter_parts.append("เน้นประหยัด คุ้มค่า")
+        else: ai_filter_parts.append("จัดเรียงสมดุล ราคา/ความน่าเชื่อถือ")
 
-        if ai_mode == 'safe':
-            ai_filter_parts.append("เน้นคัดเลือกเฉพาะสินค้าที่มีความน่าเชื่อถือสูงมาก มีรีวิวเยอะ และดาวสูง")
-        elif ai_mode == 'budget':
-            ai_filter_parts.append("เน้นคัดเลือกสินค้าที่ราคาประหยัดและคุ้มค่าที่สุด โดยยังคงมาตรฐานที่ดี")
-        else:
-            ai_filter_parts.append("ให้จัดเรียงสินค้าแบบสมดุลระหว่างราคาที่คุ้มค่าและความน่าเชื่อถือ")
-
-        # รวมคำสั่งทั้งหมดเข้าด้วยกัน
         ai_filter_text = " และ ".join(ai_filter_parts)
             
         history = SearchHistory.objects.create(
-            user=request.user,
-            keyword=keyword,
-            status='pending'
+            user=request.user, keyword=keyword, status='pending'
         )
         
         payload = {
             'keyword': keyword,
-            'min_price': min_price,
-            'max_price': max_price,
-            'ship_from': ship_from,
-            'min_rating': min_rating, 
-            'ai_mode': ai_mode,
-            'ai_filter': ai_filter_text  # 🚀 ส่งคำสั่งที่รวมเรื่องการเช็ก Title ไปให้ n8n
+            'min_price': min_price, 'max_price': max_price,
+            'ship_from': ship_from, 'min_rating': min_rating, 
+            'ai_mode': ai_mode, 'ai_filter': ai_filter_text  
         }
         
         threading.Thread(target=run_n8n_in_background, args=(history.id, payload)).start()
         return redirect('history')
-
     except Exception as e:  
-        error_html = f"""
-        <div style="padding: 20px; font-family: monospace; background: #fff5f5; color: #c53030; border: 2px solid #feb2b2; border-radius: 8px; margin: 20px;">
-            <h2 style="margin-top: 0; color: #9b2c2c;">🚨 เจอตัวการบั๊กระบบแดชบอร์ดแล้ว!</h2>
-            <p><b>ข้อผิดพลาด:</b> {str(e)}</p>
-            <hr style="border: 0; border-top: 1px solid #feb2b2; margin: 15px 0;">
-            <p><b>รายละเอียดเชิงลึก (Traceback):</b></p>
-            <pre style="background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #fee2e2; overflow-x: auto;">{traceback.format_exc()}</pre>
-        </div>
-        """
-        return HttpResponse(error_html)
+        return HttpResponse(f"Error: {e}")
 
-# 6. หน้าแสดงรายการประวัติทั้งหมด
 @login_required
 def history_view(request):
     histories = SearchHistory.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'history.html', {'histories': histories})
 
-# 7. หน้าแสดงรายละเอียดเจาะลึกหน้าแดชบอร์ด
 @login_required
 def result_detail_view(request, history_id):
     history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
@@ -180,32 +171,27 @@ def result_detail_view(request, history_id):
         'ai_analysis': history.ai_result,
         'products': products,
         'created_at': history.created_at,
-        
-        # ส่งค่าตัวแปรกลับไปโชว์ในกล่องป้าย Badges บนหน้าเว็บ
+        'history_id': history.id,
         'min_price': filters.get('min_price', ''),
         'max_price': filters.get('max_price', ''),
         'ship_from': filters.get('ship_from', 'all'),
-        'min_rating': filters.get('min_rating', ''),  # 🌟 ส่งค่าดาวที่เคยเลือกไว้ไปที่ HTML
+        'min_rating': filters.get('min_rating', ''),
         'ai_mode': filters.get('ai_mode', 'balanced'),
     }
     return render(request, 'dashboard.html', context)
 
-# 8. ส่วนจัดการระบบสมาชิก (Admin)
 @login_required
 def manage_members_view(request):
-    if not request.user.is_staff:
-        raise PermissionDenied
+    if not request.user.is_staff: raise PermissionDenied
     members = User.objects.filter(is_staff=False, is_superuser=False)
     return render(request, 'manage_members.html', {'members': members})
 
 @login_required
 def delete_member_view(request, user_id):
-    if not request.user.is_staff:
-        raise PermissionDenied
+    if not request.user.is_staff: raise PermissionDenied
     if request.method == 'POST':
         member = get_object_or_404(User, id=user_id, is_staff=False, is_superuser=False)
         member.delete()
-        messages.success(request, f"ลบบัญชีของ {member.first_name or member.username} สำเร็จแล้ว")
     return redirect('manage_members')
 
 @login_required
@@ -215,41 +201,46 @@ def delete_history_view(request, history_id):
         history.delete()
     return redirect('history')
 
-
-# myapp/views.py (นำไปต่อท้ายไฟล์ได้เลย)
-
+# 🚀 โซน Compare ของใหม่
 @login_required
 def compare_view(request):
     if request.method == 'POST':
         history_id = request.POST.get('history_id')
-        selected_indexes = request.POST.getlist('selected_products') # จะได้เป็น List ['0', '3', '7']
+        selected_indexes = request.POST.getlist('selected_products') 
         
         if len(selected_indexes) != 3:
             messages.error(request, 'กรุณาเลือกสินค้าให้ครบ 3 ชิ้น')
             return redirect(f'/dashboard/{history_id}/')
 
-        # 1. ดึงข้อมูลประวัติการค้นหา
         history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
         parsed_data = json.loads(history.products_json)
         all_products = parsed_data.get('products', []) if isinstance(parsed_data, dict) else parsed_data
         
-        # 2. คัดเฉพาะ 3 ชิ้นที่เลือก
-        selected_products = []
-        for idx in selected_indexes:
-            selected_products.append(all_products[int(idx)])
+        selected_products = [all_products[int(idx)] for idx in selected_indexes]
 
-        # ---------------------------------------------------------
-        # 🌟 โซน Scrape เชิงลึก & AI (ทำงานตรงนี้)
-        # ---------------------------------------------------------
-        # (คุณสามารถเขียนโค้ด Selenium เพื่อให้บอทวิ่งเข้า URL ของ selected_products ทั้ง 3 ชิ้น 
-        # เพื่อกวาด Description มาเก็บไว้ในตัวแปร และส่งให้ AI Gemini สรุปผลได้ที่นี่)
-        
-        ai_recommendation = "จากข้อมูลเชิงลึก สินค้าชิ้นที่ 1 มีความน่าเชื่อถือด้านการรับประกันที่ดีที่สุด ในขณะที่ชิ้นที่ 2 มีสเปคการใช้งานที่ตอบโจทย์ความคุ้มค่าด้านราคามากที่สุด หากคุณเน้นการใช้งานระยะยาว แนะนำให้เลือกชิ้นที่ 1 ครับ"
-        
+        # สร้าง Payload ส่งให้ AI วิเคราะห์เปรียบเทียบ 3 ชิ้น
+        ai_recommendation = "กำลังวิเคราะห์..."
+        try:
+            # 🛠️ ส่งไปหา Webhook ของ n8n ตัวใหม่สำหรับ Compare (คุณต้องสร้าง webhook นี้ใน n8n ด้วย)
+            N8N_COMPARE_WEBHOOK = 'http://localhost:5678/webhook/compare-items'
+            resp = requests.post(N8N_COMPARE_WEBHOOK, json={
+                "keyword": history.keyword,
+                "items": selected_products
+            }, timeout=15)
+            
+            if resp.status_code == 200:
+                result = resp.json()
+                ai_recommendation = result.get('recommendation', "เกิดข้อผิดพลาดในการดึงคำแนะนำ")
+            else:
+                ai_recommendation = "ระบบ AI ขัดข้องชั่วคราว ไม่สามารถสร้างคำแนะนำได้ในขณะนี้"
+        except Exception:
+            ai_recommendation = "ไม่สามารถเชื่อมต่อกับ AI N8N ได้ (กรุณาเช็กว่ารัน Webhook ไว้หรือไม่)"
+
         context = {
             'keyword': history.keyword,
             'products': selected_products,
-            'ai_recommendation': ai_recommendation
+            'ai_recommendation': ai_recommendation,
+            'history_id': history_id # ส่งกลับไปเพื่อให้ปุ่มย้อนกลับทำงานได้ถูกต้อง
         }
         
         return render(request, 'compare.html', context)

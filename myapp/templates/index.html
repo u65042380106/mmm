@@ -1,17 +1,14 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-5" style="color: #2d1a4d;">
-    <div class="text-center mb-5 p-5 rounded-4" style="background-color: #f5f3ff;">
-        <h1 class="display-4 fw-bold mb-2" style="color: #4c1d95;">
-            <i class="fas fa-brain me-2" style="color: #7c3aed;"></i> ระบบ AI ช่วยตัดสินใจซื้อสินค้าออนไลน์สำหรับผู้บริโภค
-        </h1>
-        <p class="text-muted fs-5"></p>
+    <div class="text-center mb-5 mt-4">
+        <p class="text-muted fs-5 mb-4">ค้นหาสินค้าพร้อมให้ AI ช่วยวิเคราะห์</p>
         
-        <a href="/search/" class="btn btn-lg px-5 rounded-pill fw-bold shadow-sm mt-3 text-white transition-all" 
-           style="background-color: #6d28d9; border: none;"
-           onmouseover="this.style.backgroundColor='#5b21b6'" 
-           onmouseout="this.style.backgroundColor='#6d28d9'">
-            <i class="fas fa-search me-2"></i> เริ่มต้นค้นหาสินค้าเลย
+        <a href="/search/" class="btn py-3 rounded-pill fw-bold shadow mt-2 text-white transition-all fs-4 d-inline-flex justify-content-center align-items-center" 
+           style="background-color: #6d28d9; border: none; width: 100%; max-width: 500px; letter-spacing: 0.5px;"
+           onmouseover="this.style.backgroundColor='#5b21b6'; this.style.transform='scale(1.03) translateY(-2px)';" 
+           onmouseout="this.style.backgroundColor='#6d28d9'; this.style.transform='scale(1) translateY(0)';">
+            <i class="fas fa-search me-3" style="font-size: 1.2em;"></i> เริ่มต้นค้นหาสินค้าเลย
         </a>
     </div>
 
@@ -20,23 +17,19 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <h3 class="fw-bold mb-4 text-center" style="color: #4c1d95;">
-                <i class="fas fa-fire text-warning me-2"></i> 10 อันดับคำค้นหายอดนิยมในระบบ (Search Trends)
+                <i class="fas fa-fire text-warning me-2"></i> 10 อันดับคำค้นหายอดนิยมในระบบ 
             </h3>
 
             {% if popular_searches %}
                 <div class="card border-0 shadow-sm p-4 bg-white rounded-4">
                     <div class="d-flex flex-column gap-3">
                         {% for item in popular_searches %}
-                        <div class="p-2 rounded-3 transition-all" onmouseover="this.style.backgroundColor='#fbfbfe'" onmouseout="this.style.backgroundColor='transparent'">
+                        <div class="search-trend-item p-3 rounded-3 transition-all" style="background-color: #faf5ff; border: 1px solid #f3f0ff;">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="fw-bold fs-5">
-                                    <span class="badge me-2 rounded-circle d-inline-flex align-items-center justify-content-center" 
-                                          style="width: 30px; height: 30px; {% if forloop.counter <= 3 %}background-color: #6d28d9;{% else %}background-color: #ddd6fe; color: #5b21b6;{% endif %}">
-                                        {{ forloop.counter }}
-                                    </span>
-                                    <span style="color: #2d1a4d;">{{ item.keyword }}</span>
+                                <span class="fw-bold fs-5" style="color: #5b21b6;">
+                                    <i class="fas fa-search text-muted me-2" style="font-size: 0.8rem;"></i>{{ item.keyword }}
                                 </span>
-                                <span class="badge rounded-pill border small fw-semibold px-3 py-2" style="color: #6d28d9; background-color: #f3f0ff; border-color: #ddd6fe!important;">
+                                <span class="badge rounded-pill px-3 py-2" style="color: #6d28d9; background-color: #f3f0ff; border-color: #ddd6fe!important;">
                                     ค้นหา {{ item.search_count }} ครั้ง
                                 </span>
                             </div>
@@ -64,7 +57,12 @@
 
 <style>
     .transition-all {
-        transition: transform 0.2s ease, background-color 0.2s ease;
+        transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .search-trend-item:hover {
+        transform: translateX(5px);
+        background-color: #f3f0ff !important;
+        border-color: #ddd6fe !important;
     }
 </style>
 {% endblock %}
