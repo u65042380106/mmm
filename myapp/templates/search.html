@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4 mx-auto" style="color: #2d1a4d; max-width: 700px;">
+    <div class="card shadow-sm border-0 rounded-4 p-4" style="background-color: #ffffff; border: 1px solid #f3f0ff!important;">
+        <h3 class="fw-bold mb-4" style="color: #4c1d95;">
+            <i class="fas fa-search me-2" style="color: #7c3aed;"></i> ค้นหาและวิเคราะห์สินค้าด้วย AI
+        </h3>
+
+        <form method="GET" action="/dashboard/">
+            
+            <div class="mb-4">
+                <label class="form-label fw-semibold" style="color: #4c1d95;">คำค้นหาสินค้า (Keyword) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted" style="border-color: #ced4da;"><i class="fas fa-shopping-basket"></i></span>
+                    <input type="text" name="keyword" class="form-control border-start-0" placeholder="เช่น รองเท้าผ้าใบ, หลอดไฟ LED, ชั้นวางของ" required style="padding: 12px;">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold" style="color: #4c1d95;"><i class="fas fa-tags me-1" style="color: #7c3aed;"></i> ช่วงราคา (บาท)</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="number" name="min_price" class="form-control" placeholder="ราคาต่ำสุด" style="padding: 11px;">
+                    </div>
+                    <div class="col-6">
+                        <input type="number" name="max_price" class="form-control" placeholder="ราคาสูงสุด" style="padding: 11px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold" style="color: #4c1d95;"><i class="fas fa-truck me-1" style="color: #7c3aed;"></i> สถานที่จัดส่งสินค้า</label>
+                <select name="ship_from" class="form-select" style="padding: 11px;">
+                    <option value="all" selected>ทั้งหมด (รวมทุกสถานที่)</option>
+                    <option value="local">ภายในประเทศ (ส่งไว)</option>
+                    <option value="overseas">ต่างประเทศ / ไม่ระบุ (Overseas)</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold" style="color: #4c1d95;">
+                    <i class="fas fa-star text-warning me-1"></i> คะแนนรีวิวขั้นต่ำ (คะแนนเฉลี่ยจะไม่ต่ำกว่านี้)
+                </label>
+                <div class="d-flex align-items-center gap-3 bg-light p-3 rounded-3 border" style="border-color: #e9ecef!important;">
+                    <div class="star-rating-picker fs-2 d-flex gap-1" style="color: #ddd6fe;">
+                        <i class="far fa-star star-btn" data-value="1" style="cursor: pointer; transition: all 0.15s ease-in-out;"></i>
+                        <i class="far fa-star star-btn" data-value="2" style="cursor: pointer; transition: all 0.15s ease-in-out;"></i>
+                        <i class="far fa-star star-btn" data-value="3" style="cursor: pointer; transition: all 0.15s ease-in-out;"></i>
+                        <i class="far fa-star star-btn" data-value="4" style="cursor: pointer; transition: all 0.15s ease-in-out;"></i>
+                        <i class="far fa-star star-btn" data-value="5" style="cursor: pointer; transition: all 0.15s ease-in-out;"></i>
+                    </div>
+                    <span id="star-text" class="fw-bold text-muted" style="font-size: 0.95rem;">คลิกเลือกจำนวนดาว</span>
+                </div>
+                <input type="hidden" name="min_rating" id="min_rating" value="">
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label fw-semibold" style="color: #4c1d95;"><i class="fas fa-robot me-1" style="color: #7c3aed;"></i> โหมดการวิเคราะห์และจัดอันดับโดย AI</label>
+                <select name="ai_mode" class="form-select" style="padding: 11px;">
+                    <option value="balanced" selected>⚖️ โหมดสมดุล (Balanced - แนะนำ)</option>
+                    <option value="safe">🛡️ เน้นความน่าเชื่อถือสูง (ดาวสูง รีวิวเยอะ)</option>
+                    <option value="budget">💸 เน้นราคาประหยัด คุ้มค่าเงินที่สุด</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-lg w-100 rounded-pill fw-bold text-white shadow-sm transition-all py-3" 
+               style="background-color: #6d28d9; border: none;"
+               onmouseover="this.style.backgroundColor='#5b21b6'" 
+               onmouseout="this.style.backgroundColor='#6d28d9'">
+                <i class="fas fa-magic me-2"></i> ค้นหาและวิเคราะห์
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const stars = document.querySelectorAll('.star-rating-picker .star-btn');
+    const minRatingInput = document.getElementById('min_rating');
+    const starText = document.getElementById('star-text');
+    
+    const textLabels = {
+        1: "1 ดาวขึ้นไป",
+        2: "2 ดาวขึ้นไป",
+        3: "3 ดาวขึ้นไป",
+        4: "4 ดาวขึ้นไป (แนะนำสำหรับสินค้าคุณภาพ) ⭐",
+        5: "5 ดาวเต็มเท่านั้น (คัดกรองระดับสูงสุด) 🏆"
+    };
+
+    stars.forEach(star => {
+        // เอฟเฟกต์ส่องแสงสีเหลืองทองเมื่อเลื่อนเมาส์ผ่าน (Hover)
+        star.addEventListener('mouseover', function() {
+            let currentVal = parseInt(this.getAttribute('data-value'));
+            highlightStars(currentVal);
+        });
+
+        // คืนสีเดิมตามค่าที่เลือกจริงเมื่อเลื่อนเมาส์ออก
+        star.addEventListener('mouseout', function() {
+            let activeVal = parseInt(minRatingInput.value) || 0;
+            highlightStars(activeVal);
+        });
+
+        // บันทึกค่าจริงและอัปเดตข้อความเมื่อกดคลิก
+        star.addEventListener('click', function() {
+            let selectedVal = parseInt(this.getAttribute('data-value'));
+            minRatingInput.value = selectedVal;
+            starText.innerText = textLabels[selectedVal];
+            starText.style.color = "#6d28d9";
+            highlightStars(selectedVal);
+        });
+    });
+
+    function highlightStars(val) {
+        stars.forEach(s => {
+            let sVal = parseInt(s.getAttribute('data-value'));
+            if (sVal <= val) {
+                s.classList.remove('far');
+                s.classList.add('fas');
+                s.style.color = "#faca51"; // สีเหลืองทอง
+            } else {
+                s.classList.remove('fas');
+                s.classList.add('far');
+                s.style.color = "#ddd6fe"; // สีม่วงพาสเทลอ่อน
+            }
+        });
+    }
+});
+</script>
+
+<style>
+    .transition-all { transition: all 0.25s ease-in-out; }
+    .form-control:focus, .form-select:focus {
+        border-color: #a78bfa !important;
+        box-shadow: 0 0 0 0.25rem rgba(109, 40, 217, 0.15) !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark"><i class="fas fa-users-cog text-primary"></i> ระบบจัดการบัญชีสมาชิกผู้ใช้งาน</h3>
+        <span class="badge bg-primary fs-6 py-2 px-3 rounded-pill">จำนวนสมาชิกทั่วไป: {{ members.count }} คน</span>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-responsive bg-white rounded-3 shadow-sm p-3">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ชื่อ - นามสกุล</th>
+                    <th>อีเมล (Google Account)</th>
+                    <th>วันที่เข้าร่วมระบบ</th>
+                    <th class="text-center">การจัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="{{ member.socialaccount_set.all.0.get_avatar_url }}" class="rounded-circle me-3 shadow-sm" width="40" height="40" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                            <div>
+                                <div class="fw-bold text-dark">{{ member.get_full_name|default:member.username }}</div>
+                                <small class="text-muted">ID: #{{ member.id }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ member.email }}</td>
+                    <td class="text-muted">{{ member.date_joined|date:"d ม.ย. Y H:i" }}</td>
+                    <td class="text-center">
+                        <form action="{% url 'delete_member' member.id %}" method="POST" onsubmit="return confirm('คุณแน่ใจใช่หรือไม่ที่จะลบบัญชีของ {{ member.get_full_name|default:member.username }}? การกระทำนี้ไม่สามารถย้อนกลับได้');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger px-3 rounded-pill">
+                                <i class="fas fa-user-minus me-1"></i> ลบบัญชี
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">
+                        <i class="fas fa-user-slash fa-3x mb-3"></i>
+                        <p class="mb-0">ยังไม่มีสมาชิกทั่วไปสมัครเข้ามาในระบบขณะนี้</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
