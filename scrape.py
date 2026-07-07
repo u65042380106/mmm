@@ -28,7 +28,7 @@ def scrape_lazada_200_items(keyword, min_price, max_price, ship_from_filter):
         current_page = 1
         max_safety_pages = 8  
 
-        while len(products_list) < 200 and current_page <= max_safety_pages:
+        while len(products_list) < 30 and current_page <= max_safety_pages:
             
             base_url = f"https://www.lazada.co.th/catalog/?q={keyword}&page={current_page}"
             if min_price: base_url += f"&priceMin={min_price}"
@@ -89,7 +89,7 @@ def scrape_lazada_200_items(keyword, min_price, max_price, ship_from_filter):
                             "image_url": image_url
                         })
                         items_found_in_this_page += 1
-                        if len(products_list) >= 100: break
+                        if len(products_list) >= 30: break
             except: pass
 
             # 🚀 วิธีที่ 2: สแกนจาก HTML
@@ -196,7 +196,7 @@ def scrape_lazada_200_items(keyword, min_price, max_price, ship_from_filter):
                             "image_url": image_url
                         })
                         items_found_in_this_page += 1
-                        if len(products_list) >= 70: break
+                        if len(products_list) >= 30: break
                     except Exception as e:
                         continue
 

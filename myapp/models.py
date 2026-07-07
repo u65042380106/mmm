@@ -16,3 +16,12 @@ class SearchHistory(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+class ComparisonRecord(models.Model):
+    history = models.ForeignKey(SearchHistory, on_delete=models.CASCADE, related_name='comparisons')
+    selected_items_json = models.TextField(verbose_name="ข้อมูลสินค้าที่เลือกเปรียบเทียบ (JSON)")
+    ai_recommendation = models.TextField(blank=True, null=True, verbose_name="คำแนะนำจาก AI")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at'] # ให้เรียงจากล่าสุดไปเก่าสุด

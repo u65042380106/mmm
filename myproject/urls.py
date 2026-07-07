@@ -4,16 +4,30 @@ from django.urls import path, include
 from myapp import views
 
 urlpatterns = [
+    # --- หน้าหลักและระบบล็อกอิน ---
     path('admin/', admin.site.urls),
     path('', views.index_view, name='index'), 
     path('accounts/', include('allauth.urls')),
     path('profile/', views.profile_view, name='profile'),
+    
+    # --- ระบบค้นหาและ Dashboard ---
     path('search/', views.search_view, name='search'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('dashboard/<int:history_id>/', views.result_detail_view, name='result_detail'),
+    
+    # --- จัดการสมาชิก (Admin) ---
     path('manage-members/', views.manage_members_view, name='manage_members'),
     path('delete-member/<int:user_id>/', views.delete_member_view, name='delete_member'),
+    
+    # --- ประวัติการค้นหา ---
     path('history/', views.history_view, name='history'),
-    path('history/<int:history_id>/', views.result_detail_view, name='result_detail'),
     path('history/delete/<int:history_id>/', views.delete_history_view, name='delete_history'),
-    path('compare/', views.compare_view, name='compare'),
+    
+    # --- หน้ารอโหลดสถานะ (AJAX) ---
+    path('loading/<int:history_id>/', views.loading_view, name='loading'),
+    path('api/check_status/<int:history_id>/', views.check_status_view, name='check_status'),
+    
+    # --- ระบบเปรียบเทียบ (Compare) โครงสร้างใหม่ ---
+    path('select-compare/<int:history_id>/', views.select_compare_view, name='select_compare'),
+    path('view-comparison/<int:compare_id>/', views.view_comparison_view, name='view_comparison'),
 ]

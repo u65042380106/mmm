@@ -8,9 +8,11 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied 
 from django.contrib import messages
 from myapp.models import SearchHistory
-from django.http import HttpResponse 
+from django.http import HttpResponse, JsonResponse 
 import traceback
 from django.db.models import Count
+from myapp.models import SearchHistory, ComparisonRecord
+
 
 def index_view(request):
     popular_searches = (
@@ -44,41 +46,23 @@ def profile_view(request):
         return redirect('profile')
     return render(request, 'profile.html')
 
-# แก้ไขเฉพาะฟังก์ชัน run_n8n_in_background
 def run_n8n_in_background(history_id, payload):
     try:
-        # ขั้นที่ 1: บอกว่ากำลังรอ AI และ Scrape 1 ทำงาน
         history = SearchHistory.objects.get(id=history_id)
         history.status = 'pending_n8n'
         history.save()
 
+        # ส่งไปหา n8n ทีเดียวให้จบกระบวนการทั้งหมด
         N8N_WEBHOOK_URL = 'http://localhost:5678/webhook-test/shopee-search'
         response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=None)
         
         if response.status_code == 200:
             result_data = response.json()
+            
+            # ตอนนี้เรารับข้อมูลที่มี image_url และ description สำเร็จรูปมาจาก n8n เลย
             products_9_items = result_data.get('products', [])
             ai_analysis = result_data.get('ai_analysis', 'ไม่มีผลวิเคราะห์')
             
-            # ขั้นที่ 2: ได้ของ 9 ชิ้นมาแล้ว บอกผู้ใช้ว่ากำลังรัน Scrape 2 (ดึงรูป)
-            history.status = 'pending_scrape2'
-            history.save()
-
-            urls_to_scrape = [p.get('link') for p in products_9_items if p.get('link')]
-            if urls_to_scrape:
-                try:
-                    scrape2_resp = requests.post('http://localhost:5001/api/scrape_details', json={'urls': urls_to_scrape})
-                    if scrape2_resp.status_code == 200:
-                        deep_details = scrape2_resp.json()
-                        for product in products_9_items:
-                            for detail in deep_details:
-                                if product.get('link') == detail.get('url'):
-                                    if detail.get('high_res_image'):
-                                        product['image_url'] = detail['high_res_image']
-                                    product['description'] = detail.get('description', '')
-                except Exception as e:
-                    print(f"Scrape2 Error: {e}") 
-
             history.ai_result = ai_analysis
             
             combined_data = {
@@ -93,16 +77,21 @@ def run_n8n_in_background(history_id, payload):
             }
             history.products_json = json.dumps(combined_data, ensure_ascii=False)
             
-            # ขั้นที่ 3: ทุกอย่างเสร็จสมบูรณ์ ปลดล็อคปุ่มให้เข้าไปดูผลลัพธ์ได้!
+            # ข้ามไปสถานะ success ได้เลย
             history.status = 'success' 
             history.save()
+        else:
+            history.status = 'error'
+            history.ai_result = "n8n ตอบกลับด้วยสถานะ Error"
+            history.save()
             
-    except Exception:
+    except Exception as e:
         try:
             history = SearchHistory.objects.get(id=history_id)
             history.status = 'error'
             history.ai_result = "เกิดข้อผิดพลาดในการเชื่อมต่อระบบวิเคราะห์ข้อมูล"
             history.save()
+            print(f"n8n Background Error: {e}")
         except: pass
 
 @login_required
@@ -118,7 +107,6 @@ def dashboard_view(request):
         if not keyword: return redirect('search')
             
         ai_filter_parts = []
-        # คำสั่งสำคัญ: บังคับคัดมาแค่ 9 ชิ้น!
         ai_filter_parts.append(f"โปรดวิเคราะห์ชื่อสินค้าเทียบกับ '{keyword}' คัดสแปมทิ้ง และ **คัดเลือกสินค้าที่ดีที่สุดมาให้เหลือเพียง 9 ชิ้นถ้วนเท่านั้น**")
 
         if min_price: ai_filter_parts.append(f"ราคาตั้งแต่ {min_price} บ.")
@@ -145,7 +133,9 @@ def dashboard_view(request):
         }
         
         threading.Thread(target=run_n8n_in_background, args=(history.id, payload)).start()
-        return redirect('history')
+        
+        # ไปหน้า Loading ทันที
+        return redirect('loading', history_id=history.id)
     except Exception as e:  
         return HttpResponse(f"Error: {e}")
 
@@ -157,28 +147,16 @@ def history_view(request):
 @login_required
 def result_detail_view(request, history_id):
     history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
-    parsed_data = json.loads(history.products_json) if history.products_json else {}
     
-    if isinstance(parsed_data, list):
-        products = parsed_data
-        filters = {}
+    # เช็กว่าประวัตินี้เคยมีการเปรียบเทียบไว้หรือยัง (ดึงอันล่าสุดมา)
+    latest_comparison = history.comparisons.first()
+    
+    if latest_comparison:
+        # ถ้าเคยเปรียบเทียบแล้ว พาไปดูหน้าผลลัพธ์การเปรียบเทียบล่าสุด
+        return redirect('view_comparison', compare_id=latest_comparison.id)
     else:
-        products = parsed_data.get('products', [])
-        filters = parsed_data.get('filters', {})
-
-    context = {
-        'keyword': history.keyword,
-        'ai_analysis': history.ai_result,
-        'products': products,
-        'created_at': history.created_at,
-        'history_id': history.id,
-        'min_price': filters.get('min_price', ''),
-        'max_price': filters.get('max_price', ''),
-        'ship_from': filters.get('ship_from', 'all'),
-        'min_rating': filters.get('min_rating', ''),
-        'ai_mode': filters.get('ai_mode', 'balanced'),
-    }
-    return render(request, 'dashboard.html', context)
+        # ถ้ายังไม่เคยเปรียบเทียบเลย พาไปหน้าเลือกสินค้า
+        return redirect('select_compare', history_id=history.id)
 
 @login_required
 def manage_members_view(request):
@@ -201,48 +179,116 @@ def delete_history_view(request, history_id):
         history.delete()
     return redirect('history')
 
-# 🚀 โซน Compare ของใหม่
+# --- โซนหน้า Loading ---
 @login_required
-def compare_view(request):
+def loading_view(request, history_id):
+    history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
+    return render(request, 'loading.html', {'history': history})
+
+@login_required
+def check_status_view(request, history_id):
+    history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
+    return JsonResponse({'status': history.status})
+
+# --- โซน Compare ---
+@login_required
+def select_compare_view(request, history_id):
+    history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
+    
+    try:
+        parsed_data = json.loads(history.products_json or '{}')
+        if isinstance(parsed_data, dict):
+            all_products = parsed_data.get('products', [])
+        elif isinstance(parsed_data, list):
+            all_products = parsed_data
+        else:
+            all_products = []
+    except (json.JSONDecodeError, TypeError):
+        all_products = []
+
     if request.method == 'POST':
-        history_id = request.POST.get('history_id')
-        selected_indexes = request.POST.getlist('selected_products') 
+        selected_indexes = request.POST.getlist('selected_products')
         
-        if len(selected_indexes) != 3:
-            messages.error(request, 'กรุณาเลือกสินค้าให้ครบ 3 ชิ้น')
-            return redirect(f'/dashboard/{history_id}/')
+        if len(selected_indexes) < 2:
+            messages.warning(request, 'กรุณาเลือกสินค้าอย่างน้อย 2 ชิ้นเพื่อทำการเปรียบเทียบ')
+            return redirect('select_compare', history_id=history_id)
+            
+        if len(selected_indexes) > 4:
+            messages.warning(request, 'เลือกเปรียบเทียบได้สูงสุด 4 ชิ้นเท่านั้น')
+            return redirect('select_compare', history_id=history_id)
 
-        history = get_object_or_404(SearchHistory, id=history_id, user=request.user)
-        parsed_data = json.loads(history.products_json)
-        all_products = parsed_data.get('products', []) if isinstance(parsed_data, dict) else parsed_data
-        
-        selected_products = [all_products[int(idx)] for idx in selected_indexes]
-
-        # สร้าง Payload ส่งให้ AI วิเคราะห์เปรียบเทียบ 3 ชิ้น
-        ai_recommendation = "กำลังวิเคราะห์..."
         try:
-            # 🛠️ ส่งไปหา Webhook ของ n8n ตัวใหม่สำหรับ Compare (คุณต้องสร้าง webhook นี้ใน n8n ด้วย)
-            N8N_COMPARE_WEBHOOK = 'http://localhost:5678/webhook/compare-items'
+            selected_products = [all_products[int(idx)] for idx in selected_indexes]
+        except (IndexError, ValueError):
+            messages.error(request, 'เกิดข้อผิดพลาดในการเลือกสินค้า')
+            return redirect('select_compare', history_id=history_id)
+
+        ai_recommendation = "กำลังวิเคราะห์..."
+        
+        # 🌟 ส่งข้อมูลไปให้ n8n Workflow ตัวใหม่วิเคราะห์ 🌟
+        try:
+            # ⚠️ ตรวจสอบ URL Webhook ให้ตรงกับที่คุณตั้งใน n8n ⚠️
+            N8N_COMPARE_WEBHOOK = 'http://localhost:5678/webhook/compare-items' 
+            
             resp = requests.post(N8N_COMPARE_WEBHOOK, json={
                 "keyword": history.keyword,
                 "items": selected_products
-            }, timeout=15)
+            }, timeout=60) # เผื่อเวลาให้ AI คิด 60 วินาที
             
             if resp.status_code == 200:
-                result = resp.json()
-                ai_recommendation = result.get('recommendation', "เกิดข้อผิดพลาดในการดึงคำแนะนำ")
+                # พยายามโหลดผลลัพธ์ JSON ที่ AI ตอบกลับมา
+                try:
+                    result_data = resp.json()
+                except json.JSONDecodeError:
+                    result_data = json.loads(resp.text)
+                
+                ai_recommendation = result_data.get('recommendation', "การเปรียบเทียบเสร็จสิ้น")
+                best_url = result_data.get('best_choice_url', "")
+                
+                # 🌟 ติดป้าย is_best_choice ให้สินค้าที่ AI เลือก 🌟
+                for p in selected_products:
+                    product_link = p.get('link', p.get('url', ''))
+                    if product_link and product_link == best_url:
+                        p['is_best_choice'] = True
+                    else:
+                        p['is_best_choice'] = False
             else:
-                ai_recommendation = "ระบบ AI ขัดข้องชั่วคราว ไม่สามารถสร้างคำแนะนำได้ในขณะนี้"
-        except Exception:
-            ai_recommendation = "ไม่สามารถเชื่อมต่อกับ AI N8N ได้ (กรุณาเช็กว่ารัน Webhook ไว้หรือไม่)"
+                ai_recommendation = "ระบบ AI ขัดข้องชั่วคราว ไม่สามารถสร้างคำแนะนำได้"
+        except Exception as e:
+            print("N8N Error:", e)
+            ai_recommendation = "ไม่สามารถเชื่อมต่อกับ AI N8N ได้ (ตรวจสอบ Webhook)"
 
-        context = {
-            'keyword': history.keyword,
-            'products': selected_products,
-            'ai_recommendation': ai_recommendation,
-            'history_id': history_id # ส่งกลับไปเพื่อให้ปุ่มย้อนกลับทำงานได้ถูกต้อง
-        }
+        # บันทึกข้อมูลลงฐานข้อมูล
+        new_comparison = ComparisonRecord.objects.create(
+            history=history,
+            selected_items_json=json.dumps(selected_products, ensure_ascii=False),
+            ai_recommendation=ai_recommendation
+        )
         
-        return render(request, 'compare.html', context)
-        
-    return redirect('search')
+        return redirect('view_comparison', compare_id=new_comparison.id)
+
+    return render(request, 'select_compare.html', {
+        'keyword': history.keyword,
+        'all_products': all_products,
+        'history_id': history_id
+    })
+
+@login_required
+def view_comparison_view(request, compare_id):
+    comparison = get_object_or_404(ComparisonRecord, id=compare_id, history__user=request.user)
+    
+    try:
+        selected_products = json.loads(comparison.selected_items_json)
+    except:
+        selected_products = []
+
+    for item in selected_products:
+        if isinstance(item, dict):
+            item['product_url'] = item.get('link') or item.get('url') or ''
+
+    return render(request, 'view_comparison.html', {
+        'keyword': comparison.history.keyword,
+        'selected_products': selected_products,
+        'ai_recommendation': comparison.ai_recommendation,
+        'history_id': comparison.history.id  # 🌟 ตรวจสอบว่าส่งชื่อนี้ออกไป
+    })
