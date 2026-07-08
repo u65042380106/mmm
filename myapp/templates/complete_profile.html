@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <h2>กรอกข้อมูลส่วนตัวให้สมบูรณ์</h2>
+    <p>ข้อมูลชื่อและ Username ถูกดึงมาให้แล้ว กรุณาตรวจสอบและเลือกเพศเพื่อดำเนินการต่อ</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+    </form>
+</div>
+{% endblock %}

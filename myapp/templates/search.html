@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
+
 <div class="container mt-4 mx-auto" style="color: #2d1a4d; max-width: 700px;">
     <div class="card shadow-sm border-0 rounded-4 p-4" style="background-color: #ffffff; border: 1px solid #f3f0ff!important;">
-        <h3 class="fw-bold mb-4 d-flex align-items-center flex-wrap gap-2" style="color: #4c1d95;">
+        <h3 class="fw-bold mb-4 d-flex align-items-center flex-wrap gap-2" style="color: #45310e;">
             <div>
-                <i class="fas fa-search me-2" style="color: #7c3aed;"></i> ค้นหาและวิเคราะห์สินค้าด้วย AI
+                <i class="fas fa-search me-2" style="color: #503510;"></i> ค้นหาและวิเคราะห์สินค้าด้วย AI
             </div>
             <span class="badge rounded-pill ms-md-2" style="background: linear-gradient(45deg, #0f136d, #f36f21); font-size: 0.9rem; font-weight: 500;">
                 <i class="fas fa-shopping-bag me-1"></i> สืบค้นจาก Lazada
@@ -14,7 +15,7 @@
         <form method="GET" action="/dashboard/">
             
             <div class="mb-4">
-                <label class="form-label fw-semibold" style="color: #4c1d95;">คำค้นหาสินค้า (Keyword) <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold" style="color: #45310e;">คำค้นหาสินค้า <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0 text-muted" style="border-color: #ced4da;"><i class="fas fa-shopping-basket"></i></span>
                     <input type="text" name="keyword" class="form-control border-start-0" placeholder="เช่น รองเท้าผ้าใบ, หลอดไฟ LED, ชั้นวางของ (สืบค้นจาก Lazada)" required style="padding: 12px;">
@@ -23,17 +24,17 @@
 
             <div class="row mb-4">
                 <div class="col-6">
-                    <label class="form-label fw-semibold" style="color: #4c1d95;">ราคาต่ำสุด (บาท)</label>
+                    <label class="form-label fw-semibold" style="color: #45310e;">ราคาต่ำสุด (บาท)</label>
                     <input type="number" name="min_price" class="form-control" placeholder="ไม่ระบุ" style="padding: 10px;">
                 </div>
                 <div class="col-6">
-                    <label class="form-label fw-semibold" style="color: #4c1d95;">ราคาสูงสุด (บาท)</label>
+                    <label class="form-label fw-semibold" style="color: #45310e;">ราคาสูงสุด (บาท)</label>
                     <input type="number" name="max_price" class="form-control" placeholder="ไม่ระบุ" style="padding: 10px;">
                 </div>
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-semibold" style="color: #4c1d95;">สถานที่จัดส่งสินค้า</label>
+                <label class="form-label fw-semibold" style="color: #45310e;">สถานที่จัดส่งสินค้า</label>
                 <select name="ship_from" class="form-select" style="padding: 10px;">
                     <option value="all">ทั้งหมด </option>
                     <option value="local">ภายในประเทศ </option>
@@ -42,7 +43,7 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-semibold" style="color: #4c1d95;">คะแนนรีวิวขั้นต่ำ</label>
+                <label class="form-label fw-semibold" style="color: #45310e;">คะแนนรีวิวของสินค้าขั้นต่ำ</label>
                 <div class="d-flex align-items-center gap-2 fs-4">
                     <input type="hidden" name="min_rating" id="min_rating" value="">
                     <i class="far fa-star star-rating-icon" data-value="1" style="cursor: pointer; color: #ddd6fe;"></i>
@@ -55,10 +56,10 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-semibold d-flex align-items-center flex-wrap gap-1" style="color: #4c1d95;">
+                <label class="form-label fw-semibold d-flex align-items-center flex-wrap gap-1" style="color: #45310e;">
                     โหมดการวิเคราะห์และจัดอันดับโดย AI
                     <i class="fas fa-info-circle text-muted" 
-                       style="cursor: pointer; font-size: 1.1rem; color: #7c3aed !important;" 
+                       style="cursor: pointer; font-size: 1.1rem; color: #45310e !important;" 
                        data-bs-toggle="popover" 
                        data-bs-trigger="hover focus" 
                        data-bs-html="true" 
@@ -78,7 +79,7 @@
             </div>
 
             <button type="submit" class="btn w-100 text-white rounded-pill fw-bold py-2 shadow-sm transition-all" 
-                    style="background-color: #6d28d9; border: none;"
+                    style="background-color: #45310e; border: none;"
                     onmouseover="this.style.backgroundColor='#5b21b6'" 
                     onmouseout="this.style.backgroundColor='#6d28d9'">
                 <i class="fas fa-robot me-2"></i> เริ่มค้นหาและให้ AI วิเคราะห์ข้อมูล

@@ -1,6 +1,8 @@
 # myapp/models.py
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class SearchHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="ผู้ใช้งาน")
@@ -25,3 +27,19 @@ class ComparisonRecord(models.Model):
 
     class Meta:
         ordering = ['-created_at'] # ให้เรียงจากล่าสุดไปเก่าสุด
+
+class UserProfile(models.Model):
+    GENDER_CHOICES = [
+        ('M', 'ชาย'),
+        ('F', 'หญิง'),
+        ('O', 'อื่นๆ/ไม่ระบุ'),
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
+    is_complete = models.BooleanField(default=False) # เช็กว่ากรอกครบหรือยัง
+
+# ใช้ Signal เพื่อสร้าง Profile อัตโนมัติเมื่อ Google สร้าง User ใหม่
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)

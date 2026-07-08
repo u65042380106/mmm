@@ -12,6 +12,21 @@ from django.http import HttpResponse, JsonResponse
 import traceback
 from django.db.models import Count
 from myapp.models import SearchHistory, ComparisonRecord
+from .forms import ProfileCompletionForm
+
+
+@login_required
+def complete_profile(request):
+    if request.method == 'POST':
+        form = ProfileCompletionForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('http://127.0.0.1:8000/') # เปลี่ยนเป็น URL หน้าแรกของคุณ
+    else:
+        # instance=request.user จะดึง ชื่อ นามสกุล username ที่ได้จาก Google มาใส่ในช่องให้อัตโนมัติ
+        form = ProfileCompletionForm(instance=request.user)
+        
+    return render(request, 'complete_profile.html', {'form': form})
 
 
 def index_view(request):
@@ -212,10 +227,6 @@ def select_compare_view(request, history_id):
         if len(selected_indexes) < 2:
             messages.warning(request, 'กรุณาเลือกสินค้าอย่างน้อย 2 ชิ้นเพื่อทำการเปรียบเทียบ')
             return redirect('select_compare', history_id=history_id)
-            
-        if len(selected_indexes) > 4:
-            messages.warning(request, 'เลือกเปรียบเทียบได้สูงสุด 4 ชิ้นเท่านั้น')
-            return redirect('select_compare', history_id=history_id)
 
         try:
             selected_products = [all_products[int(idx)] for idx in selected_indexes]
@@ -292,3 +303,7 @@ def view_comparison_view(request, compare_id):
         'ai_recommendation': comparison.ai_recommendation,
         'history_id': comparison.history.id  # 🌟 ตรวจสอบว่าส่งชื่อนี้ออกไป
     })
+@login_required
+def edit_profile(request):
+    # ฟังก์ชันนี้ใช้ฟอร์มเดียวกันกับ complete_profile
+    return complete_profile(request)

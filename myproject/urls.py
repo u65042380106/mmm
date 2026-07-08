@@ -9,6 +9,8 @@ urlpatterns = [
     path('', views.index_view, name='index'), 
     path('accounts/', include('allauth.urls')),
     path('profile/', views.profile_view, name='profile'),
+    path('complete-profile/', views.complete_profile, name='complete_profile'),
+    path('edit-profile/', views.edit_profile, name='edit_profile'),
     
     # --- ระบบค้นหาและ Dashboard ---
     path('search/', views.search_view, name='search'),
