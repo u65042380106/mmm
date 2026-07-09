@@ -11,7 +11,7 @@ class ProfileCompletionMiddleware:
             # รายชื่อ URL ที่อนุญาตให้เข้าได้แม้ยังกรอกไม่ครบ
             allowed_urls = [
                 reverse('complete_profile'), 
-                reverse('logout') # ต้องยอมให้กดออกจากระบบได้เผื่อเปลี่ยนใจ
+                reverse('account_logout') # เปลี่ยนเป็น account_logout สำหรับ allauth
             ]
             
             # ถ้าไม่ได้อยู่ในหน้าพวกนี้ ให้ตรวจสถานะ

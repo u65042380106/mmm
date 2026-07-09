@@ -18,7 +18,7 @@
                 <label class="form-label fw-semibold" style="color: #45310e;">คำค้นหาสินค้า <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0 text-muted" style="border-color: #ced4da;"><i class="fas fa-shopping-basket"></i></span>
-                    <input type="text" name="keyword" class="form-control border-start-0" placeholder="เช่น รองเท้าผ้าใบ, หลอดไฟ LED, ชั้นวางของ (สืบค้นจาก Lazada)" required style="padding: 12px;">
+                    <input type="text" name="keyword" class="form-control border-start-0" placeholder="เช่น รองเท้าผ้าใบ, หลอดไฟ LED, ชั้นวางของ " required style="padding: 12px;">
                 </div>
             </div>
 
@@ -46,11 +46,11 @@
                 <label class="form-label fw-semibold" style="color: #45310e;">คะแนนรีวิวของสินค้าขั้นต่ำ</label>
                 <div class="d-flex align-items-center gap-2 fs-4">
                     <input type="hidden" name="min_rating" id="min_rating" value="">
-                    <i class="far fa-star star-rating-icon" data-value="1" style="cursor: pointer; color: #ddd6fe;"></i>
-                    <i class="far fa-star star-rating-icon" data-value="2" style="cursor: pointer; color: #ddd6fe;"></i>
-                    <i class="far fa-star star-rating-icon" data-value="3" style="cursor: pointer; color: #ddd6fe;"></i>
-                    <i class="far fa-star star-rating-icon" data-value="4" style="cursor: pointer; color: #ddd6fe;"></i>
-                    <i class="far fa-star star-rating-icon" data-value="5" style="cursor: pointer; color: #ddd6fe;"></i>
+                    <i class="fas fa-star star-rating-icon" data-value="1" style="cursor: pointer; color: #ddd6fe;"></i>
+                    <i class="fas fa-star star-rating-icon" data-value="2" style="cursor: pointer; color: #ddd6fe;"></i>
+                    <i class="fas fa-star star-rating-icon" data-value="3" style="cursor: pointer; color: #ddd6fe;"></i>
+                    <i class="fas fa-star star-rating-icon" data-value="4" style="cursor: pointer; color: #ddd6fe;"></i>
+                    <i class="fas fa-star star-rating-icon" data-value="5" style="cursor: pointer; color: #ddd6fe;"></i>
                     <span id="star_text" class="fs-6 ms-2 text-muted">เลือกคะแนนขั้นต่ำที่ต้องการ</span>
                 </div>
             </div>
@@ -80,8 +80,8 @@
 
             <button type="submit" class="btn w-100 text-white rounded-pill fw-bold py-2 shadow-sm transition-all" 
                     style="background-color: #45310e; border: none;"
-                    onmouseover="this.style.backgroundColor='#5b21b6'" 
-                    onmouseout="this.style.backgroundColor='#6d28d9'">
+                    onmouseover="this.style.backgroundColor='#45310e'" 
+                    onmouseout="this.style.backgroundColor='#45310e'">
                 <i class="fas fa-robot me-2"></i> เริ่มค้นหาและให้ AI วิเคราะห์ข้อมูล
             </button>
         </form>
@@ -127,12 +127,10 @@ document.addEventListener("DOMContentLoaded", function() {
         stars.forEach(s => {
             let sVal = parseInt(s.getAttribute('data-value'));
             if (sVal <= val) {
-                s.classList.remove('far');
-                s.classList.add('fas');
+                // เมื่อถูกเลือกหรือเอาเมาส์ชี้ -> ให้ดาวเป็นสีทอง
                 s.style.color = "#faca51"; 
             } else {
-                s.classList.remove('fas');
-                s.classList.add('far');
+                // เมื่อไม่ได้เลือก -> ให้ดาวกลับไปเป็นสีเทาอ่อน
                 s.style.color = "#ddd6fe"; 
             }
         });

@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from myapp import views
+from django.shortcuts import redirect
 
 urlpatterns = [
     # --- หน้าหลักและระบบล็อกอิน ---
@@ -32,4 +33,15 @@ urlpatterns = [
     # --- ระบบเปรียบเทียบ (Compare) โครงสร้างใหม่ ---
     path('select-compare/<int:history_id>/', views.select_compare_view, name='select_compare'),
     path('view-comparison/<int:compare_id>/', views.view_comparison_view, name='view_comparison'),
+
+    # 🌟 1. ดักจับหน้า login ของ admin ให้เด้งมาที่หน้า login ของระบบเรา พร้อมส่ง parameter next=/admin/ 
+    # เพื่อให้พอล็อกอินเสร็จ จะได้เด้งกลับไปที่หน้า Dashboard ของ Admin ทันที
+    path('admin/login/', lambda request: redirect('/accounts/login/?next=/admin/')),
+    
+    path('admin/', admin.site.urls),
+    
+    # ... URL อื่นๆ ที่มีอยู่แล้ว ...
+    path('complete-profile/', views.complete_profile, name='complete_profile'),
+    path('edit-profile/', views.edit_profile, name='edit_profile'),
+    path('accounts/', include('allauth.urls')),
 ]

@@ -178,3 +178,6 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # 2. เปิดระบบสมัครสมาชิกอัตโนมัติจากข้อมูล Google (ไม่ต้องกรอกฟอร์มเพิ่มในครั้งแรก)
 SOCIALACCOUNT_AUTO_SIGNUP = True
+
+
+
